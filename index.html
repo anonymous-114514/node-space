@@ -1,722 +1,911 @@
-<!DOCTYPE html>
+<script type="text/javascript">
+    var gk_isXlsx = false;
+    var gk_xlsxFileLookup = {};
+    var gk_fileData = {};
+    function filledCell(cell) {
+      return cell !== '' && cell != null;
+    }
+    function loadFileData(filename) {
+    if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+        try {
+            var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+            var firstSheetName = workbook.SheetNames[0];
+            var worksheet = workbook.Sheets[firstSheetName];
+
+            // Convert sheet to JSON to filter blank rows
+            var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+            // Filter out blank rows (rows where all cells are empty, null, or undefined)
+            var filteredData = jsonData.filter(row => row.some(filledCell));
+
+            // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+            var headerRowIndex = filteredData.findIndex((row, index) =>
+              row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+            );
+            // Fallback
+            if (headerRowIndex === -1 || headerRowIndex > 25) {
+              headerRowIndex = 0;
+            }
+
+            // Convert filtered JSON back to CSV
+            var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+            csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+            return csv;
+        } catch (e) {
+            console.error(e);
+            return "";
+        }
+    }
+    return gk_fileData[filename] || "";
+    }
+    </script><!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Green Network - Protect Earth</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        :root {
-            --primary: #2e7d32;
-            --secondary: #4caf50;
-            --accent: #8bc34a;
-            --light: #e8f5e9;
-            --dark: #1b5e20;
-            --text: #333333;
-            --white: #ffffff;
-        }
-
-        body {
-            background-color: var(--light);
-            color: var(--text);
-            line-height: 1.6;
-        }
-
-        header {
-            background: linear-gradient(to right, var(--primary), var(--secondary));
-            color: var(--white);
-            padding: 1rem 0;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        .container {
-            width: 90%;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .nav-container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 1.8rem;
-            font-weight: 700;
-        }
-
-        .logo i {
-            font-size: 2rem;
-        }
-
-        nav ul {
-            display: flex;
-            list-style: none;
-        }
-
-        nav ul li {
-            margin-left: 2rem;
-        }
-
-        nav ul li a {
-            color: var(--white);
-            text-decoration: none;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            padding: 0.5rem 0;
-            position: relative;
-        }
-
-        nav ul li a:hover {
-            color: var(--accent);
-        }
-
-        nav ul li a::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 0;
-            height: 2px;
-            background-color: var(--accent);
-            transition: width 0.3s ease;
-        }
-
-        nav ul li a:hover::after {
-            width: 100%;
-        }
-
-        .hero {
-            background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.4)), url('https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2073&q=80');
-            background-size: cover;
-            background-position: center;
-            height: 80vh;
-            display: flex;
-            align-items: center;
-            text-align: center;
-            color: var(--white);
-        }
-
-        .hero-content {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-
-        .hero h1 {
-            font-size: 3.5rem;
-            margin-bottom: 1rem;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-        }
-
-        .hero p {
-            font-size: 1.3rem;
-            margin-bottom: 2rem;
-        }
-
-        .btn {
-            display: inline-block;
-            background-color: var(--accent);
-            color: var(--white);
-            padding: 0.8rem 2rem;
-            border-radius: 50px;
-            text-decoration: none;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            border: none;
-            cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        .btn:hover {
-            background-color: var(--primary);
-            transform: translateY(-3px);
-            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
-        }
-
-        section {
-            padding: 5rem 0;
-        }
-
-        .section-title {
-            text-align: center;
-            margin-bottom: 3rem;
-        }
-
-        .section-title h2 {
-            font-size: 2.5rem;
-            color: var(--primary);
-            margin-bottom: 1rem;
-            position: relative;
-            display: inline-block;
-        }
-
-        .section-title h2::after {
-            content: '';
-            position: absolute;
-            bottom: -10px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 80px;
-            height: 4px;
-            background-color: var(--accent);
-            border-radius: 2px;
-        }
-
-        .section-title p {
-            color: var(--text);
-            max-width: 700px;
-            margin: 0 auto;
-        }
-
-        .about-content {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 3rem;
-            align-items: center;
-        }
-
-        .about-img {
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        .about-img img {
-            width: 100%;
-            height: auto;
-            display: block;
-            transition: transform 0.5s ease;
-        }
-
-        .about-img:hover img {
-            transform: scale(1.05);
-        }
-
-        .about-text h3 {
-            font-size: 1.8rem;
-            margin-bottom: 1.5rem;
-            color: var(--dark);
-        }
-
-        .about-text p {
-            margin-bottom: 1.5rem;
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 2rem;
-            margin-top: 3rem;
-        }
-
-        .stat-item {
-            text-align: center;
-            padding: 2rem 1rem;
-            background-color: var(--white);
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-            transition: transform 0.3s ease;
-        }
-
-        .stat-item:hover {
-            transform: translateY(-10px);
-        }
-
-        .stat-item i {
-            font-size: 2.5rem;
-            color: var(--primary);
-            margin-bottom: 1rem;
-        }
-
-        .stat-item h3 {
-            font-size: 2.5rem;
-            color: var(--dark);
-            margin-bottom: 0.5rem;
-        }
-
-        .stat-item p {
-            color: var(--text);
-        }
-
-        .initiatives {
-            background-color: var(--white);
-        }
-
-        .initiatives-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 2rem;
-        }
-
-        .initiative-card {
-            background-color: var(--light);
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-            transition: transform 0.3s ease;
-        }
-
-        .initiative-card:hover {
-            transform: translateY(-10px);
-        }
-
-        .initiative-img {
-            height: 200px;
-            overflow: hidden;
-        }
-
-        .initiative-img img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.5s ease;
-        }
-
-        .initiative-card:hover .initiative-img img {
-            transform: scale(1.1);
-        }
-
-        .initiative-content {
-            padding: 1.5rem;
-        }
-
-        .initiative-content h3 {
-            font-size: 1.5rem;
-            margin-bottom: 1rem;
-            color: var(--dark);
-        }
-
-        .initiative-content p {
-            margin-bottom: 1.5rem;
-        }
-
-        .cta {
-            background: linear-gradient(to right, var(--primary), var(--secondary));
-            color: var(--white);
-            text-align: center;
-            padding: 5rem 0;
-        }
-
-        .cta h2 {
-            font-size: 2.5rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .cta p {
-            font-size: 1.2rem;
-            margin-bottom: 2rem;
-            max-width: 700px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        .cta .btn {
-            background-color: var(--white);
-            color: var(--primary);
-        }
-
-        .cta .btn:hover {
-            background-color: var(--accent);
-            color: var(--white);
-        }
-
-        footer {
-            background-color: var(--dark);
-            color: var(--white);
-            padding: 3rem 0 1rem;
-        }
-
-        .footer-content {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 2rem;
-            margin-bottom: 2rem;
-        }
-
-        .footer-column h3 {
-            font-size: 1.3rem;
-            margin-bottom: 1.5rem;
-            position: relative;
-            padding-bottom: 10px;
-        }
-
-        .footer-column h3::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 40px;
-            height: 2px;
-            background-color: var(--accent);
-        }
-
-        .footer-column p {
-            margin-bottom: 1rem;
-        }
-
-        .footer-links {
-            list-style: none;
-        }
-
-        .footer-links li {
-            margin-bottom: 0.8rem;
-        }
-
-        .footer-links li a {
-            color: var(--light);
-            text-decoration: none;
-            transition: all 0.3s ease;
-        }
-
-        .footer-links li a:hover {
-            color: var(--accent);
-            padding-left: 5px;
-        }
-
-        .social-links {
-            display: flex;
-            gap: 1rem;
-        }
-
-        .social-links a {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 40px;
-            height: 40px;
-            background-color: rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
-            color: var(--white);
-            text-decoration: none;
-            transition: all 0.3s ease;
-        }
-
-        .social-links a:hover {
-            background-color: var(--accent);
-            transform: translateY(-5px);
-        }
-
-        .copyright {
-            text-align: center;
-            padding-top: 2rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .mobile-menu {
-            display: none;
-            font-size: 1.5rem;
-            cursor: pointer;
-        }
-
-        @media (max-width: 992px) {
-            .about-content {
-                grid-template-columns: 1fr;
-            }
-            
-            .initiatives-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            
-            .footer-content {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            
-            .stats {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
-        @media (max-width: 768px) {
-            .hero h1 {
-                font-size: 2.5rem;
-            }
-            
-            .hero p {
-                font-size: 1.1rem;
-            }
-            
-            nav ul {
-                display: none;
-                position: absolute;
-                top: 100%;
-                left: 0;
-                width: 100%;
-                background-color: var(--primary);
-                flex-direction: column;
-                padding: 1rem 0;
-                text-align: center;
-                box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
-            }
-            
-            nav ul.active {
-                display: flex;
-            }
-            
-            nav ul li {
-                margin: 0;
-                padding: 0.8rem 0;
-            }
-            
-            .mobile-menu {
-                display: block;
-            }
-            
-            .initiatives-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .footer-content {
-                grid-template-columns: 1fr;
-            }
-            
-            .stats {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        /* Animation for stats counter */
-        .counter {
-            transition: all 0.5s ease;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arcaea Songlist Editor</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    .modal { display: none; position: fixed; z-index: 50; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
+    .modal-content { background-color: #fefefe; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 8px; }
+    .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+    .close:hover { color: #000; }
+    .song-item { transition: background-color 0.2s; }
+    .song-item:hover { background-color: #f1f5f9; }
+    #output { white-space: pre-wrap; overflow-y: auto; max-height: 200px; }
+</style>
 </head>
-<body>
-    <!-- Header -->
-    <header>
-        <div class="container nav-container">
-            <div class="logo">
-                <i class="fas fa-seedling"></i>
-                <span>Green Network</span>
-            </div>
-            <nav>
-                <div class="mobile-menu">
-                    <i class="fas fa-bars"></i>
-                </div>
-                <ul>
-                    <li><a href="#home">Home</a></li>
-                    <li><a href="#about">About</a></li>
-                    <li><a href="#initiatives">Initiatives</a></li>
-                    <li><a href="#get-involved">Get Involved</a></li>
-                    <li><a href="#contact">Contact</a></li>
-                </ul>
-            </nav>
-        </div>
-    </header>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+<div class="bg-white rounded-lg shadow-lg w-full max-w-4xl p-6">
+    <h1 class="text-3xl font-bold text-center text-blue-600 mb-6">Arcaea Songlist Editor</h1>
+    <div class="flex flex-wrap gap-2 mb-4">
+        <button id="undo" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Undo</button>
+        <button id="redo" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Redo</button>
+        <button id="save" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Save JSON</button>
+        <button id="merge-json" class="bg-amber-500 text-white px-4 py-2 rounded hover:bg-amber-600">Import JSONs</button>
+<input type="file" id="merge-file-input" accept=".json" class="hidden" multiple>
+        <button id="add-song" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Add Song</button>
+        <button id="find-song" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">Find Songs</button>
+        <button id="find-duplicates" class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600">Find Duplicates</button>
+        <button onclick="clearLoadedJson()" 
+    class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Clear Loaded Json</button>
+    <div id="output" class="bg-gray-100 p-4 rounded mb-4 border border-gray-300"></div>
+    <div id="songlist" class="space-y-2">
+        <!-- Song list will be rendered here -->
+    </div>
+</div>
 
-    <!-- Hero Section -->
-    <section class="hero" id="home">
-        <div class="container hero-content">
-            <h1>Protect Our Planet, Preserve Our Future</h1>
-            <p>Join the global movement to create a sustainable world through conservation, education, and community action.</p>
-            <a href="#get-involved" class="btn">Join Our Network</a>
-        </div>
-    </section>
+<div id="viewer"></div>
 
-    <!-- About Section -->
-    <section id="about">
-        <div class="container">
-            <div class="section-title">
-                <h2>About Green Network</h2>
-                <p>We are a global community dedicated to environmental protection and sustainable development.</p>
-            </div>
-            <div class="about-content">
-                <div class="about-img">
-                    <img src="https://images.unsplash.com/photo-1507591064344-4c6ce005b128?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80" alt="Team planting trees">
-                </div>
-                <div class="about-text">
-                    <h3>Our Mission</h3>
-                    <p>Green Network is committed to creating a sustainable future by protecting natural ecosystems, promoting renewable energy, and empowering communities to take environmental action.</p>
-                    <p>Founded in 2010, we've grown from a small grassroots organization to an international network with over 50,000 members across 120 countries.</p>
-                    <p>Our approach combines scientific research, community engagement, and policy advocacy to address the most pressing environmental challenges of our time.</p>
-                    <a href="#" class="btn">Learn More</a>
-                </div>
-            </div>
-            <div class="stats">
-                <div class="stat-item">
-                    <i class="fas fa-tree"></i>
-                    <h3 class="counter" data-target="2500000">0</h3>
-                    <p>Trees Planted</p>
-                </div>
-                <div class="stat-item">
-                    <i class="fas fa-users"></i>
-                    <h3 class="counter" data-target="50000">0</h3>
-                    <p>Active Members</p>
-                </div>
-                <div class="stat-item">
-                    <i class="fas fa-globe-americas"></i>
-                    <h3 class="counter" data-target="120">0</h3>
-                    <p>Countries Reached</p>
-                </div>
-                <div class="stat-item">
-                    <i class="fas fa-recycle"></i>
-                    <h3 class="counter" data-target="1500">0</h3>
-                    <p>Cleanup Projects</p>
-                </div>
-            </div>
-        </div>
-    </section>
+<!-- Add/Edit Song Modal -->
+<div id="song-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2 id="song-modal-title" class="text-2xl font-bold mb-4"></h2>
+        <form id="song-form" class="space-y-4">
+            <div><label class="block">ID:</label><input type="text" name="id" class="w-full p-2 border rounded"></div>
+            <div><label class="block">Title (EN):</label><input type="text" name="title_localized.en" class="w-full p-2 border rounded"></div>
+            <div><label class="block">Title (JP):</label><input type="text" name="title_localized.jp" class="w-full p-2 border rounded"></div>
+            <div><label class="block">Artist:</label><input type="text" name="artist" class="w-full p-2 border rounded"></div>
+            <div><label class="block">BPM:</label><input type="text" name="bpm" class="w-full p-2 border rounded"></div>
+            <div><label class="block">BPM Base:</label><input type="number" step="0.1" name="bpm_base" class="w-full p-2 border rounded"></div>
+            <div><label class="block">Set:</label><input type="text" name="set" class="w-full p-2 border rounded"></div>
+            <div><label class="block">Purchase:</label><input type="text" name="purchase" class="w-full p-2 border rounded"></div>
+            <div><label class="block">Category:</label><input type="text" name="category" class="w-full p-2 border rounded"></div>
+            <div><label class="block">Audio Preview (ms):</label><input type="number" name="audioPreview" class="w-full p-2 border rounded"></div>
+            <div><label class="block">Audio Preview End (ms):</label><input type="number" name="audioPreviewEnd" class="w-full p-2 border rounded"></div>
+            <div><label class="block">Side:</label><input type="number" name="side" class="w-full p-2 border rounded"></div>
+            <div><label class="block">Remote DL:</label><input type="checkbox" name="remote_dl" class="p-2"></div>
+            <div><label class="block">World Unlock:</label><input type="checkbox" name="world_unlock" class="p-2"></div>
+            <div><label class="block">Background:</label><input type="text" name="bg" class="w-full p-2 border rounded"></div>
+            <div><label class="block">BG Inverse:</label><input type="text" name="bg_inverse" class="w-full p-2 border rounded"></div>
+            <div><label class="block">Date (UNIX):</label><input type="number" name="date" class="w-full p-2 border rounded"></div>
+            <div><label class="block">Version:</label><input type="text" name="version" class="w-full p-2 border rounded"></div>
+            <div><label class="block">Source (EN):</label><input type="text" name="source_localized.en" class="w-full p-2 border rounded"></div>
+            <div><label class="block">Source (JP):</label><input type="text" name="source_localized.jp" class="w-full p-2 border rounded"></div>
+            <div><label class="block">Source Copyright:</label><input type="text" name="source_copyright" class="w-full p-2 border rounded"></div>
+            <div id="difficulties" class="space-y-2"></div>
+            <button type="button" id="add-difficulty" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Add Difficulty</button>
+            <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Save Song</button>
+        </form>
+    </div>
+</div>
 
-    <!-- Initiatives Section -->
-    <section class="initiatives" id="initiatives">
-        <div class="container">
-            <div class="section-title">
-                <h2>Our Initiatives</h2>
-                <p>Discover the key programs and projects we're implementing to protect our planet.</p>
-            </div>
-            <div class="initiatives-grid">
-                <div class="initiative-card">
-                    <div class="initiative-img">
-                        <img src="https://dialogue.earth/content/uploads/2021/04/lessons-from-the-rush-to-reforest-china-dialogue-2400x1599.jpg" alt="Reforestation">
-                    </div>
-                    <div class="initiative-content">
-                        <h3>Global Reforestation</h3>
-                        <p>Planting millions of trees worldwide to restore ecosystems, combat climate change, and protect biodiversity.</p>
-                        <a href="#" class="btn">Learn More</a>
-                    </div>
-                </div>
-                <div class="initiative-card">
-                    <div class="initiative-img">
-                        <img src="https://images.unsplash.com/photo-1621451537084-482c73073a0f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1974&q=80" alt="Ocean Conservation">
-                    </div>
-                    <div class="initiative-content">
-                        <h3>Ocean Conservation</h3>
-                        <p>Protecting marine ecosystems, reducing plastic pollution, and promoting sustainable fishing practices.</p>
-                        <a href="#" class="btn">Learn More</a>
-                    </div>
-                </div>
-                <div class="initiative-card">
-                    <div class="initiative-img">
-                        <img src="https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2072&q=80" alt="Renewable Energy">
-                    </div>
-                    <div class="initiative-content">
-                        <h3>Renewable Energy</h3>
-                        <p>Promoting solar, wind, and other clean energy sources to reduce dependence on fossil fuels.</p>
-                        <a href="#" class="btn">Learn More</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+<!-- Difficulty Modal -->
+<div id="difficulty-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2 class="text-2xl font-bold mb-4">Edit Difficulty</h2>
+        <form id="difficulty-form" class="space-y-4">
+            <div><label class="block">Rating Class:</label><input type="number" name="ratingClass" class="w-full p-2 border rounded"></div>
+            <div><label class="block">Chart Designer:</label><input type="text" name="chartDesigner" class="w-full p-2 border rounded"></div>
+            <div><label class="block">Jacket Designer:</label><input type="text" name="jacketDesigner" class="w-full p-2 border rounded"></div>
+            <div><label class="block">Rating:</label><input type="number" name="rating" class="w-full p-2 border rounded"></div>
+            <div><label class="block">Rating Plus:</label><input type="checkbox" name="ratingPlus" class="p-2"></div>
+            <div><label class="block">Jacket Override:</label><input type="checkbox" name="jacketOverride" class="p-2"></div>
+            <div><label class="block">Audio Override:</label><input type="checkbox" name="audioOverride" class="p-2"></div>
+            <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Save Difficulty</button>
+        </form>
+    </div>
+</div>
 
-    <!-- CTA Section -->
-    <section class="cta" id="get-involved">
-        <div class="container">
-            <h2>Join Our Global Movement</h2>
-            <p>Together, we can create a sustainable future for generations to come. Every action counts, no matter how small.</p>
-            <a href="#" class="btn">Become a Member</a>
-        </div>
-    </section>
+<!-- Find Modal -->
+<div id="find-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2 class="text-2xl font-bold mb-4">Find Songs</h2>
+        <form id="find-form" class="space-y-4">
+            <div><label class="block">Search Keyword:</label><input type="text" name="keyword" class="w-full p-2 border rounded" placeholder="Enter keyword"></div>
+            <button type="submit" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">Search</button>
+        </form>
+        <div id="find-results" class="mt-4"></div>
+    </div>
+</div>
 
-    <!-- Footer -->
-    <footer id="contact">
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-column">
-                    <h3>Green Network</h3>
-                    <p>We are dedicated to protecting our planet through collaborative action, education, and sustainable solutions.</p>
-                    <div class="social-links">
-                        <a href="#"><i class="fab fa-facebook-f"></i></a>
-                        <a href="#"><i class="fab fa-twitter"></i></a>
-                        <a href="#"><i class="fab fa-instagram"></i></a>
-                        <a href="#"><i class="fab fa-linkedin-in"></i></a>
-                    </div>
-                </div>
-                <div class="footer-column">
-                    <h3>Quick Links</h3>
-                    <ul class="footer-links">
-                        <li><a href="#home">Home</a></li>
-                        <li><a href="#about">About Us</a></li>
-                        <li><a href="#initiatives">Initiatives</a></li>
-                        <li><a href="#get-involved">Get Involved</a></li>
-                        <li><a href="#contact">Contact</a></li>
-                    </ul>
-                </div>
-                <div class="footer-column">
-                    <h3>Our Programs</h3>
-                    <ul class="footer-links">
-                        <li><a href="#">Reforestation</a></li>
-                        <li><a href="#">Ocean Cleanup</a></li>
-                        <li><a href="#">Wildlife Protection</a></li>
-                        <li><a href="#">Climate Education</a></li>
-                        <li><a href="#">Sustainable Agriculture</a></li>
-                    </ul>
-                </div>
-                <div class="footer-column">
-                    <h3>Contact Us</h3>
-                    <p><i class="fas fa-map-marker-alt"></i> Copper Creek Drive, New York</p>
-                    <p><i class="fas fa-phone"></i> +1 (312) 171-0771</p>
-                    <p><i class="fas fa-envelope"></i> support@greennetwork.org</p>
-                </div>
-            </div>
-            <div class="copyright">
-                <p>&copy; 2025 Green Network. All rights reserved.</p>
-            </div>
-        </div>
-    </footer>
+<script>
+    // Data and state
+    let doc = { songs: [] };
+    let history = [];
+    let redoStack = [];
+    const maxHistory = 50;
+    let currentSongIdx = null;
+    let currentDifficultyIndex = null;
 
-    <script>
-        // Mobile Menu Toggle
-        document.querySelector('.mobile-menu').addEventListener('click', function() {
-            document.querySelector('nav ul').classList.toggle('active');
+    // Helper functions
+    function deepCopy(obj) {
+        return JSON.parse(JSON.stringify(obj));
+    }
+
+    function saveState() {
+        if (history.length >= maxHistory) history.shift();
+        history.push(deepCopy(doc));
+        redoStack = [];
+    }
+
+    function undo() {
+        if (history.length > 0) {
+            redoStack.push(deepCopy(doc));
+            doc = history.pop();
+            renderSonglist();
+            outputMessage('Undo performed.');
+        } else {
+            outputMessage('No more actions to undo.');
+        }
+    }
+
+    function redo() {
+        if (redoStack.length > 0) {
+            history.push(deepCopy(doc));
+            doc = redoStack.pop();
+            renderSonglist();
+            outputMessage('Redo performed.');
+        } else {
+            outputMessage('No more actions to redo.');
+        }
+    }
+
+    function outputMessage(msg) {
+        document.getElementById('output').innerText = msg;
+    }
+
+    function getNextFreeIdx() {
+        const used = doc.songs.map(s => s.idx).sort((a, b) => a - b);
+        let next = 0;
+        for (let u of used) {
+            if (u === next) next++;
+            else if (u > next) break;
+        }
+        return next;
+    }
+
+    function renderSonglist() {
+        const songlistDiv = document.getElementById('songlist');
+        songlistDiv.innerHTML = '';
+        if (doc.songs.length === 0) {
+            songlistDiv.innerHTML = '<p class="text-gray-500">No songs yet.</p>';
+            return;
+        }
+        doc.songs.forEach(song => {
+            const item = document.createElement('div');
+            item.className = 'song-item p-4 border-b border-gray-200 rounded flex justify-between items-center';
+            item.innerHTML = `
+                <span>idx: ${song.idx} | id: ${song.id} | title: ${song.title_localized.en} | artist: ${song.artist}</span>
+                <div>
+                    <button class="edit-song bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600 mr-2" data-idx="${song.idx}">Edit</button>
+                    <button class="delete-song bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600" data-idx="${song.idx}">Delete</button>
+                </div>
+            `;
+            songlistDiv.appendChild(item);
         });
-
-        // Counter Animation
-        function animateCounters() {
-            const counters = document.querySelectorAll('.counter');
-            const speed = 200; // The lower the slower
-            
-            counters.forEach(counter => {
-                const target = +counter.getAttribute('data-target');
-                const count = +counter.innerText;
-                
-                const inc = target / speed;
-                
-                if(count < target) {
-                    counter.innerText = Math.ceil(count + inc);
-                    setTimeout(animateCounters, 1);
-                } else {
-                    counter.innerText = target;
-                }
+        // Attach event listeners for edit/delete buttons
+        document.querySelectorAll('.edit-song').forEach(btn => {
+            btn.addEventListener('click', () => openSongModal(parseInt(btn.dataset.idx)));
+        });
+        document.querySelectorAll('.delete-song').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (confirm(`Delete song idx=${btn.dataset.idx}?`)) deleteSong(parseInt(btn.dataset.idx));
             });
+        });
+    }
+
+    function openSongModal(idx = null) {
+        currentSongIdx = idx;
+        const modal = document.getElementById('song-modal');
+        const form = document.getElementById('song-form');
+        const title = document.getElementById('song-modal-title');
+        const difficultiesDiv = document.getElementById('difficulties');
+        form.reset();
+        difficultiesDiv.innerHTML = '';
+
+        if (idx !== null) {
+            title.textContent = `Edit Song (idx: ${idx})`;
+            const song = doc.songs.find(s => s.idx === idx);
+            if (song) {
+                form.elements['id'].value = song.id;
+                form.elements['title_localized.en'].value = song.title_localized.en || '';
+                form.elements['title_localized.jp'].value = song.title_localized.jp || '';
+                form.elements['artist'].value = song.artist;
+                form.elements['bpm'].value = song.bpm;
+                form.elements['bpm_base'].value = song.bpm_base;
+                form.elements['set'].value = song.set;
+                form.elements['purchase'].value = song.purchase;
+                form.elements['category'].value = song.category;
+                form.elements['audioPreview'].value = song.audioPreview;
+                form.elements['audioPreviewEnd'].value = song.audioPreviewEnd;
+                form.elements['side'].value = song.side;
+                form.elements['remote_dl'].checked = song.remote_dl;
+                form.elements['world_unlock'].checked = song.world_unlock;
+                form.elements['bg'].value = song.bg;
+                form.elements['bg_inverse'].value = song.bg_inverse;
+                form.elements['date'].value = song.date;
+                form.elements['version'].value = song.version;
+                form.elements['source_localized.en'].value = song.source_localized?.en || '';
+                form.elements['source_localized.jp'].value = song.source_localized?.jp || '';
+                form.elements['source_copyright'].value = song.source_copyright;
+
+                song.difficulties.forEach((diff, i) => {
+                    const diffDiv = document.createElement('div');
+                    diffDiv.className = 'flex justify-between items-center border p-2 rounded';
+                    diffDiv.innerHTML = `
+                        <span>Rating Class: ${diff.ratingClass} | Rating: ${diff.rating}${diff.ratingPlus ? '+' : ''}</span>
+                        <div>
+                            <button type="button" class="edit-difficulty bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600 mr-2" data-index="${i}">Edit</button>
+                            <button type="button" class="delete-difficulty bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600" data-index="${i}">Delete</button>
+                        </div>
+                    `;
+                    difficultiesDiv.appendChild(diffDiv);
+                });
+            }
+        } else {
+            title.textContent = 'Add New Song';
         }
 
-        // Initialize counters when page loads
-        window.addEventListener('load', animateCounters);
-
-        // Smooth scrolling for navigation links
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function(e) {
-                e.preventDefault();
-                
-                const targetId = this.getAttribute('href');
-                if(targetId === '#') return;
-                
-                const targetElement = document.querySelector(targetId);
-                if(targetElement) {
-                    window.scrollTo({
-                        top: targetElement.offsetTop - 80,
-                        behavior: 'smooth'
-                    });
-                    
-                    document.querySelector('nav ul').classList.remove('active');
+        modal.style.display = 'block';
+        // Attach difficulty event listeners
+        document.querySelectorAll('.edit-difficulty').forEach(btn => {
+            btn.addEventListener('click', () => openDifficultyModal(parseInt(btn.dataset.index)));
+        });
+        document.querySelectorAll('.delete-difficulty').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (confirm(`Delete difficulty ${btn.dataset.index}?`)) {
+                    saveState();
+                    const song = doc.songs.find(s => s.idx === currentSongIdx);
+                    song.difficulties.splice(parseInt(btn.dataset.index), 1);
+                    openSongModal(currentSongIdx); // Refresh modal
+                    outputMessage(`Deleted difficulty ${btn.dataset.index}.`);
                 }
             });
         });
-    </script>
-</body>
+    }
 
+    function openDifficultyModal(index = null) {
+        currentDifficultyIndex = index;
+        const modal = document.getElementById('difficulty-modal');
+        const form = document.getElementById('difficulty-form');
+        form.reset();
+
+        if (index !== null) {
+            const song = doc.songs.find(s => s.idx === currentSongIdx);
+            const diff = song.difficulties[index];
+            form.elements['ratingClass'].value = diff.ratingClass;
+            form.elements['chartDesigner'].value = diff.chartDesigner;
+            form.elements['jacketDesigner'].value = diff.jacketDesigner;
+            form.elements['rating'].value = diff.rating;
+            form.elements['ratingPlus'].checked = diff.ratingPlus;
+            form.elements['jacketOverride'].checked = diff.jacketOverride;
+            form.elements['audioOverride'].checked = diff.audioOverride;
+        }
+
+        modal.style.display = 'block';
+    }
+
+    function openFindModal() {
+        const modal = document.getElementById('find-modal');
+        modal.style.display = 'block';
+        document.getElementById('find-form').reset();
+        document.getElementById('find-results').innerHTML = '';
+    }
+
+    function addSong(data) {
+        saveState();
+        const newIdx = getNextFreeIdx();
+        const newSong = {
+            idx: newIdx,
+            id: data.id || '',
+            title_localized: { en: data['title_localized.en'] || '', jp: data['title_localized.jp'] || '' },
+            artist: data.artist || '',
+            bpm: data.bpm || '',
+            bpm_base: parseFloat(data.bpm_base) || 0,
+            set: data.set || '',
+            purchase: data.purchase || '',
+            category: data.category || '',
+            audioPreview: parseInt(data.audioPreview) || 0,
+            audioPreviewEnd: parseInt(data.audioPreviewEnd) || 0,
+            side: parseInt(data.side) || 0,
+            remote_dl: !!data.remote_dl,
+            world_unlock: !!data.world_unlock,
+            bg: data.bg || '',
+            bg_inverse: data.bg_inverse || '',
+            date: parseInt(data.date) || 0,
+            version: data.version || '',
+            source_localized: { en: data['source_localized.en'] || '', jp: data['source_localized.jp'] || '' },
+            source_copyright: data.source_copyright || '',
+            difficulties: data.difficulties || []
+        };
+        doc.songs.push(newSong);
+        doc.songs.sort((a, b) => a.idx - b.idx);
+        renderSonglist();
+        outputMessage(`Added song idx=${newIdx}`);
+    }
+
+    function editSong(idx, data) {
+        saveState();
+        const song = doc.songs.find(s => s.idx === idx);
+        if (!song) return;
+        song.id = data.id || '';
+        song.title_localized.en = data['title_localized.en'] || '';
+        song.title_localized.jp = data['title_localized.jp'] || '';
+        song.artist = data.artist || '';
+        song.bpm = data.bpm || '';
+        song.bpm_base = parseFloat(data.bpm_base) || 0;
+        song.set = data.set || '';
+        song.purchase = data.purchase || '';
+        song.category = data.category || '';
+        song.audioPreview = parseInt(data.audioPreview) || 0;
+        song.audioPreviewEnd = parseInt(data.audioPreviewEnd) || 0;
+        song.side = parseInt(data.side) || 0;
+        song.remote_dl = !!data.remote_dl;
+        song.world_unlock = !!data.world_unlock;
+        song.bg = data.bg || '';
+        song.bg_inverse = data.bg_inverse || '';
+        song.date = parseInt(data.date) || 0;
+        song.version = data.version || '';
+        song.source_localized = { en: data['source_localized.en'] || '', jp: data['source_localized.jp'] || '' };
+        song.source_copyright = data.source_copyright || '';
+        renderSonglist();
+        outputMessage(`Edited song idx=${idx}`);
+    }
+
+    function deleteSong(idx) {
+        saveState();
+        const index = doc.songs.findIndex(s => s.idx === idx);
+        if (index !== -1) {
+            doc.songs.splice(index, 1);
+            renderSonglist();
+            outputMessage(`Deleted song idx=${idx}`);
+        } else {
+            outputMessage(`Song idx=${idx} not found.`);
+        }
+    }
+
+    function addDifficulty(data) {
+        saveState();
+        const song = doc.songs.find(s => s.idx === currentSongIdx);
+        if (!song) return;
+        const newClass = parseInt(data.ratingClass);
+        if (song.difficulties.some(d => d.ratingClass === newClass)) {
+            outputMessage(`Difficulty with ratingClass ${newClass} already exists.`);
+            return;
+        }
+        const newDiff = {
+            ratingClass: newClass,
+            chartDesigner: data.chartDesigner || '',
+            jacketDesigner: data.jacketDesigner || '',
+            rating: parseInt(data.rating) || 0,
+            ratingPlus: !!data.ratingPlus,
+            jacketOverride: !!data.jacketOverride,
+            audioOverride: !!data.audioOverride
+        };
+        song.difficulties.push(newDiff);
+        openSongModal(currentSongIdx); // Refresh song modal
+        outputMessage(`Added difficulty ratingClass=${newClass}`);
+    }
+
+    function editDifficulty(data) {
+        saveState();
+        const song = doc.songs.find(s => s.idx === currentSongIdx);
+        if (!song || currentDifficultyIndex === null) return;
+        const diff = song.difficulties[currentDifficultyIndex];
+        const newClass = parseInt(data.ratingClass);
+        if (diff.ratingClass !== newClass && song.difficulties.some(d => d.ratingClass === newClass)) {
+            outputMessage(`Difficulty with ratingClass ${newClass} already exists.`);
+            return;
+        }
+        diff.ratingClass = newClass;
+        diff.chartDesigner = data.chartDesigner || '';
+        diff.jacketDesigner = data.jacketDesigner || '';
+        diff.rating = parseInt(data.rating) || 0;
+        diff.ratingPlus = !!data.ratingPlus;
+        diff.jacketOverride = !!data.jacketOverride;
+        diff.audioOverride = !!data.audioOverride;
+        openSongModal(currentSongIdx); // Refresh song modal
+        outputMessage(`Edited difficulty ratingClass=${newClass}`);
+    }
+
+    function findSongs(keyword) {
+        keyword = keyword.toLowerCase();
+        const results = doc.songs.filter(s => 
+            s.id.toLowerCase().includes(keyword) ||
+            s.title_localized.en.toLowerCase().includes(keyword) ||
+            (s.title_localized.jp || '').toLowerCase().includes(keyword) ||
+            s.artist.toLowerCase().includes(keyword)
+        );
+        const resultsDiv = document.getElementById('find-results');
+        resultsDiv.innerHTML = '';
+        if (results.length === 0) {
+            resultsDiv.innerHTML = '<p class="text-gray-500">No results found.</p>';
+            return;
+        }
+        results.forEach(s => {
+            const item = document.createElement('div');
+            item.className = 'p-2 border-b border-gray-200';
+            item.innerHTML = `idx: ${s.idx} | id: ${s.id} | title: ${s.title_localized.en} | artist: ${s.artist}`;
+            resultsDiv.appendChild(item);
+        });
+        outputMessage(`Found ${results.length} songs.`);
+    }
+
+    function mergeJson(newData) {
+        saveState();
+        if (!newData.songs) {
+            outputMessage('Invalid merge data.');
+            return;
+        }
+        let added = 0;
+        newData.songs.forEach(newSong => {
+            if (!doc.songs.some(s => s.id === newSong.id)) {
+                newSong.idx = getNextFreeIdx();
+                doc.songs.push(newSong);
+                added++;
+            }
+        });
+        doc.songs.sort((a, b) => a.idx - b.idx);
+        renderSonglist();
+        outputMessage(`Merged ${added} songs.`);
+    }
+
+    function saveJson() {
+        // Ensure proper key order: idx, id, then others
+        const orderedDoc = {
+            songs: doc.songs.map(song => {
+                const newSong = { idx: song.idx, id: song.id };
+                Object.keys(song).forEach(key => {
+                    if (key !== 'idx' && key !== 'id') newSong[key] = song[key];
+                });
+                return newSong;
+            })
+        };
+        const blob = new Blob([JSON.stringify(orderedDoc, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'songlist.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        outputMessage('Saved JSON to file.');
+    }
+
+function findDuplicateSongsDetailed() {
+const seen = {};
+const duplicatesMap = {};
+
+// 分組比對
+doc.songs.forEach(song => {
+    const key = `${song.title_localized.en}||${song.title_localized.jp}||${song.artist}`;
+    if (seen[key]) {
+        if (!duplicatesMap[key]) {
+            duplicatesMap[key] = [seen[key]]; // 先放第一個已見的
+        }
+        duplicatesMap[key].push(song);
+    } else {
+        seen[key] = song;
+    }
+});
+
+const resultsDiv = document.getElementById('output');
+resultsDiv.innerHTML = '';
+
+const groups = Object.values(duplicatesMap);
+if (groups.length === 0) {
+    resultsDiv.innerText = 'No duplicate songs found.';
+    return;
+}
+
+let html = `<p>Found ${groups.length} duplicate group(s):</p>`;
+groups.forEach((group, idx) => {
+    html += `<div class="border p-2 mb-2 rounded bg-gray-50">
+               <p class="font-bold">Group ${idx + 1} — Title: ${group[0].title_localized.en} / ${group[0].title_localized.jp} | Artist: ${group[0].artist}</p>
+               <ul class="list-disc ml-5">`;
+    group.forEach(s => {
+        html += `<li>
+                    idx: ${s.idx} | id: ${s.id} | BPM: ${s.bpm} (base: ${s.bpm_base}) | 
+                    Category: ${s.category} | Version: ${s.version} | 
+                    Date: ${s.date} | Set: ${s.set} | Purchase: ${s.purchase}
+                 </li>`;
+    });
+    html += `</ul></div>`;
+});
+
+resultsDiv.innerHTML = html;
+}
+
+// 綁定事件
+document.getElementById('find-duplicates').addEventListener('click', findDuplicateSongsDetailed);
+
+async function importMultipleJsonFiles(fileList) {
+if (!fileList || fileList.length === 0) {
+    outputMessage('No files selected.');
+    return;
+}
+
+saveState();
+
+const files = Array.from(fileList);
+const existingIds = new Set(doc.songs.map(s => s.id));
+const importedIds = new Set();
+const toAdd = [];
+
+let filesProcessed = 0;
+let filesFailed = 0;
+let duplicatesSkipped = 0;
+const warningsAll = [];
+
+const readFileAsText = (file) =>
+    new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve({ ok: true, text: reader.result, file });
+        reader.onerror = () => resolve({ ok: false, error: 'Read error', file });
+        reader.readAsText(file);
+    });
+
+const results = await Promise.all(files.map(readFileAsText));
+
+for (const res of results) {
+    if (!res.ok) {
+        filesFailed++;
+        continue;
+    }
+
+    const parsed = tryParseJsonWithRepair(res.text);
+    if (!parsed.ok) {
+        filesFailed++;
+        warningsAll.push(`File "${res.file.name}": ${parsed.error}`);
+        continue;
+    }
+
+    const normalized = validateAndRepairDoc(parsed.json);
+    warningsAll.push(...(parsed.warnings || []).map(w => `File "${res.file.name}": ${w}`));
+    warningsAll.push(...(normalized.warnings || []).map(w => `File "${res.file.name}": ${w}`));
+
+    if (!normalized.ok) {
+        filesFailed++;
+        warningsAll.push(`File "${res.file.name}": ${normalized.error}`);
+        continue;
+    }
+
+    const songs = normalized.doc.songs;
+    for (const song of songs) {
+        const id = song.id;
+        if (!id) {
+            // skip songs without id; already warned by validator
+            continue;
+        }
+        if (existingIds.has(id) || importedIds.has(id)) {
+            duplicatesSkipped++;
+            continue;
+        }
+        toAdd.push(deepCopy(song));
+        importedIds.add(id);
+    }
+
+    filesProcessed++;
+}
+
+// Assign idx for additions (ensure no conflicts)
+for (const song of toAdd) {
+    song.idx = getNextFreeIdx();
+    doc.songs.push(song);
+}
+
+doc.songs.sort((a, b) => a.idx - b.idx);
+renderSonglist();
+
+const warnText = warningsAll.length ? '\n' + formatWarnings('Warnings:', warningsAll) : '';
+outputMessage(
+    `Imported ${filesProcessed} file(s), added ${toAdd.length} song(s), ` +
+    `skipped ${duplicatesSkipped} duplicate(s), ${filesFailed} file(s) failed.${warnText}`
+);
+}
+
+// --- JSON sanitize & parse helpers ---
+
+function stripBOM(text) {
+if (text.charCodeAt(0) === 0xFEFF) return text.slice(1);
+return text;
+}
+
+function removeComments(text) {
+// Remove // line comments
+text = text.replace(/(^|[^:])\/\/.*$/gm, '$1');
+// Remove /* block comments */
+text = text.replace(/\/\*[\s\S]*?\*\//g, '');
+return text;
+}
+
+function removeTrailingCommas(text) {
+// Trailing commas before } or ]
+return text
+    .replace(/,\s*([}\]])/g, '$1');
+}
+
+function normalizeSmartQuotes(text) {
+// Replace common smart quotes with ASCII quotes
+return text
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, '\'');
+}
+
+function sanitizeJsonText(raw) {
+let t = stripBOM(raw);
+t = normalizeSmartQuotes(t);
+t = removeComments(t);
+t = removeTrailingCommas(t);
+return t.trim();
+}
+
+function tryParseJsonWithRepair(raw) {
+const warnings = [];
+try {
+    return { ok: true, json: JSON.parse(raw), warnings };
+} catch {
+    // try sanitize
+    const cleaned = sanitizeJsonText(raw);
+    if (cleaned !== raw) warnings.push('Sanitized JSON text (removed BOM/comments/trailing commas/quotes).');
+    try {
+        return { ok: true, json: JSON.parse(cleaned), warnings };
+    } catch (e2) {
+        return { ok: false, error: `Parse failed: ${e2.message}`, warnings };
+    }
+}
+}
+
+// --- Schema normalize & repair ---
+
+function toStringSafe(v) { return (v == null) ? '' : String(v); }
+function toNumberSafe(v) {
+const n = (typeof v === 'number') ? v : parseFloat(v);
+return Number.isFinite(n) ? n : 0;
+}
+function toIntSafe(v) {
+const n = (typeof v === 'number') ? v : parseInt(v, 10);
+return Number.isInteger(n) ? n : 0;
+}
+function toBoolSafe(v) {
+if (typeof v === 'boolean') return v;
+if (typeof v === 'string') return ['true','1','yes','y','on'].includes(v.toLowerCase());
+return !!v;
+}
+
+function normalizeTitleLocalized(v) {
+// Accept: string | {en,...} | {jp,...} | {title:...}
+if (v == null) return { en: '', jp: '' };
+if (typeof v === 'string') return { en: v, jp: '' };
+const en = toStringSafe(v.en ?? v.title ?? v.name ?? '');
+const jp = toStringSafe(v.jp ?? v.ja ?? '');
+return { en, jp };
+}
+
+function normalizeSourceLocalized(v) {
+if (v == null) return { en: '', jp: '' };
+if (typeof v === 'string') return { en: v, jp: '' };
+return { en: toStringSafe(v.en), jp: toStringSafe(v.jp ?? v.ja ?? '') };
+}
+
+function normalizeDifficulties(arr) {
+if (!Array.isArray(arr)) return [];
+return arr.map(d => ({
+    ratingClass: toIntSafe(d?.ratingClass),
+    chartDesigner: toStringSafe(d?.chartDesigner),
+    jacketDesigner: toStringSafe(d?.jacketDesigner),
+    rating: toIntSafe(d?.rating),
+    ratingPlus: toBoolSafe(d?.ratingPlus),
+    jacketOverride: toBoolSafe(d?.jacketOverride),
+    audioOverride: toBoolSafe(d?.audioOverride),
+}));
+}
+
+// Ensure doc => { songs: [...] }
+function coerceToSongsDoc(obj) {
+if (Array.isArray(obj)) return { songs: obj };
+if (obj && Array.isArray(obj.songs)) return { songs: obj.songs };
+if (obj && Array.isArray(obj.songlist)) return { songs: obj.songlist };
+if (obj && obj.data && Array.isArray(obj.data.songs)) return { songs: obj.data.songs };
+return null;
+}
+
+function validateAndRepairDoc(rawObj) {
+const warnings = [];
+const wrapped = coerceToSongsDoc(rawObj);
+if (!wrapped) {
+    return { ok: false, error: 'Top-level must be an array or an object containing a songs array.', warnings };
+}
+
+let songs = wrapped.songs;
+if (!Array.isArray(songs)) {
+    return { ok: false, error: 'songs must be an array.', warnings };
+}
+
+// Normalize each song
+const normSongs = songs
+    .filter(s => s && typeof s === 'object')
+    .map(s => {
+        const song = { ...s };
+        song.id = toStringSafe(song.id || song.song_id || song.uid);
+        song.title_localized = normalizeTitleLocalized(song.title_localized ?? song.title ?? song.name);
+        song.artist = toStringSafe(song.artist);
+        song.bpm = toStringSafe(song.bpm);
+        song.bpm_base = toNumberSafe(song.bpm_base);
+        song.set = toStringSafe(song.set);
+        song.purchase = toStringSafe(song.purchase);
+        song.category = toStringSafe(song.category);
+        song.audioPreview = toIntSafe(song.audioPreview);
+        song.audioPreviewEnd = toIntSafe(song.audioPreviewEnd);
+        song.side = toIntSafe(song.side);
+        song.remote_dl = toBoolSafe(song.remote_dl);
+        song.world_unlock = toBoolSafe(song.world_unlock);
+        song.bg = toStringSafe(song.bg);
+        song.bg_inverse = toStringSafe(song.bg_inverse);
+        song.date = toIntSafe(song.date);
+        song.version = toStringSafe(song.version);
+        song.source_localized = normalizeSourceLocalized(song.source_localized ?? song.source);
+        song.source_copyright = toStringSafe(song.source_copyright);
+        song.difficulties = normalizeDifficulties(song.difficulties);
+
+        // idx may be invalid; unify later
+        const idxNum = toIntSafe(song.idx);
+        song.idx = Number.isInteger(idxNum) ? idxNum : null;
+        return song;
+    });
+
+if (normSongs.length !== songs.length) {
+    warnings.push(`Dropped ${songs.length - normSongs.length} invalid song entries.`);
+}
+
+// Reindex: ensure unique, non-negative, dense
+const used = new Set();
+const pending = [];
+for (const s of normSongs) {
+    if (s.idx == null || s.idx < 0 || used.has(s.idx)) {
+        pending.push(s);
+    } else {
+        used.add(s.idx);
+    }
+}
+// Fill gaps from 0 upward
+let next = 0;
+function nextFree() {
+    while (used.has(next)) next++;
+    const val = next;
+    used.add(val);
+    next++;
+    return val;
+}
+for (const s of pending) {
+    s.idx = nextFree();
+}
+
+// Sort by idx
+normSongs.sort((a, b) => a.idx - b.idx);
+
+// Final check: require id non-empty for import merge logic
+const idMissing = normSongs.filter(s => !s.id).length;
+if (idMissing > 0) warnings.push(`${idMissing} song(s) missing id; they may be skipped during merge.`);
+
+return { ok: true, doc: { songs: normSongs }, warnings };
+}
+
+// Pretty-print warning & error summary
+function formatWarnings(prefix, warnings = []) {
+if (!warnings.length) return '';
+return `${prefix}\n- ${warnings.join('\n- ')}`;
+}
+
+function clearLoadedJson() {
+// 清空目前的歌曲資料
+doc = { songs: [] };
+history = [];
+redoStack = [];
+
+// 重新渲染空列表
+renderSonglist();
+
+// 輸出提示訊息
+outputMessage('Cleared JSON infos (No deleted file) .');
+}
+
+
+    // Event listeners
+    document.getElementById('undo').addEventListener('click', undo);
+    document.getElementById('redo').addEventListener('click', redo);
+    document.getElementById('save').addEventListener('click', saveJson);
+    document.getElementById('add-song').addEventListener('click', () => openSongModal());
+    document.getElementById('find-song').addEventListener('click', openFindModal);
+    document.getElementById('add-difficulty').addEventListener('click', () => openDifficultyModal());
+
+    // Modal close handlers
+    document.querySelectorAll('.close').forEach(closeBtn => {
+        closeBtn.addEventListener('click', () => {
+            closeBtn.closest('.modal').style.display = 'none';
+        });
+    });
+
+    // Song form submission
+    document.getElementById('song-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData);
+        data.difficulties = doc.songs.find(s => s.idx === currentSongIdx)?.difficulties || [];
+        if (currentSongIdx !== null) {
+            editSong(currentSongIdx, data);
+        } else {
+            addSong(data);
+        }
+        document.getElementById('song-modal').style.display = 'none';
+    });
+
+    // Difficulty form submission
+    document.getElementById('difficulty-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData);
+        if (currentDifficultyIndex !== null) {
+            editDifficulty(data);
+        } else {
+            addDifficulty(data);
+        }
+        document.getElementById('difficulty-modal').style.display = 'none';
+    });
+
+document.getElementById('merge-json').addEventListener('click', () => {
+document.getElementById('merge-file-input').click();
+});
+
+document.getElementById('merge-file-input').addEventListener('change', async (e) => {
+const files = e.target.files;
+await importMultipleJsonFiles(files);
+// 清空 value 以便下次選相同檔案仍可觸發
+e.target.value = '';
+});
+
+
+    // Find form submission
+    document.getElementById('find-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const keyword = e.target.elements['keyword'].value;
+        findSongs(keyword);
+    });
+
+    // Initial render
+    renderSonglist();
+</script>
+</body>
 </html>
